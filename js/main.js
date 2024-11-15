@@ -40,12 +40,20 @@ function updateUI(user) {
 
 function openAuthModal() {
     modalAuth.style.display = 'block';
+    document.body.style.overflow = 'hidden'; 
 }
 
 function closeAuthModal() {
     modalAuth.style.display = 'none';
+    document.body.style.overflow = ''; 
     resetForm();
 }
+
+window.addEventListener('click', function (event) {
+    if (event.target === modalAuth) {
+        closeAuthModal();
+    }
+});
 
 function updateButtonState() {
     const isLoginFilled = loginInput.value.trim() !== '';
