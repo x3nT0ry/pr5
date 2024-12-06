@@ -10,8 +10,15 @@ const buttonLogin = document.querySelector(".button-login");
 const loginErrorText = document.getElementById("login-error");
 const passwordErrorText = document.getElementById("password-error");
 const authErrorText = document.getElementById("auth-error");
-
 const cardsRestaurants = document.querySelector(".cards-restaurants");
+
+async function getData(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Помилка за адресою ${url}, статус помилки ${response.status}`);
+    }
+    return await response.json();
+}
 
 function saveUser(user) {
     localStorage.setItem("user", JSON.stringify(user));
@@ -64,7 +71,6 @@ function updateButtonState() {
     passwordErrorText.style.display = isPasswordFilled ? "none" : "block";
 
     buttonLogin.disabled = !(isLoginFilled && isPasswordFilled);
-
     authErrorText.style.display = "none";
 }
 
@@ -98,7 +104,6 @@ loginInput.addEventListener("input", updateButtonState);
 passwordInput.addEventListener("input", updateButtonState);
 
 authButton.addEventListener("click", openAuthModal);
-
 closeAuthButton.addEventListener("click", closeAuthModal);
 
 outButton.addEventListener("click", function () {
@@ -109,8 +114,7 @@ outButton.addEventListener("click", function () {
 });
 
 function createCardRestaurant(restaurant) {
-    const { name, time_of_delivery, price, stars, kitchen, image, products } =
-        restaurant;
+    const { name, time_of_delivery, price, stars, kitchen, image, products } = restaurant;
     const card = `
     <a href="restaurant.html" class="card card-restaurant" data-products="${products}">
       <img src="${image}" alt="${name}" class="card-image" />
@@ -120,9 +124,7 @@ function createCardRestaurant(restaurant) {
           <span class="card-tag tag">${time_of_delivery}</span>
         </div>
         <div class="card-info">
-          <div class="rating">
-            ${stars}
-          </div>
+          <div class="rating">${stars}</div>
           <div class="price">${price}</div>
           <div class="category">${kitchen}</div>
         </div>
@@ -133,10 +135,12 @@ function createCardRestaurant(restaurant) {
 }
 
 function init() {
-    fetch("restaurants.json")
-        .then((response) => response.json())
+    getData("./db/partners.json")
         .then((restaurants) => {
             restaurants.forEach(createCardRestaurant);
+        })
+        .catch((error) => {
+            console.error("Помилка завантаження списку ресторанів:", error);
         });
 
     cardsRestaurants.addEventListener("click", function (event) {
@@ -156,7 +160,7 @@ function init() {
                     kitchen: target.querySelector(".category").textContent,
                     price: target.querySelector(".price").textContent,
                     stars: target.querySelector(".rating").textContent,
-                    products: target.dataset.products,
+                    products: target.dataset.products, 
                 })
             );
             window.location.href = target.getAttribute("href");
@@ -176,7 +180,6 @@ document.addEventListener("DOMContentLoaded", function () {
     ) {
         init();
 
-        // Ініціалізація Swiper
         var swiper = new Swiper(".swiper", {
             navigation: {
                 nextEl: ".swiper-button-next",
@@ -207,8 +210,7 @@ function initRestaurantPage() {
     price.textContent = restaurant.price;
     category.textContent = restaurant.kitchen;
 
-    fetch(restaurant.products)
-        .then((response) => response.json())
+    getData(`./db/${restaurant.products}`)
         .then((products) => {
             products.forEach(createMenuItemCard);
         })
