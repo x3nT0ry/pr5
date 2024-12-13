@@ -11,11 +11,18 @@ const loginErrorText = document.getElementById("login-error");
 const passwordErrorText = document.getElementById("password-error");
 const authErrorText = document.getElementById("auth-error");
 const cardsRestaurants = document.querySelector(".cards-restaurants");
+const searchInput = document.querySelector(".input-search");
+const searchResultsSection = document.querySelector(".search-results");
+const cardsMenu = document.querySelector(".cards-menu");
+const containerPromo = document.querySelector(".containerPromo");
+const restaurantsSection = document.querySelector(".restaurants");
 
 async function getData(url) {
     const response = await fetch(url);
     if (!response.ok) {
-        throw new Error(`Помилка за адресою ${url}, статус помилки ${response.status}`);
+        throw new Error(
+            `Помилка за адресою ${url}, статус помилки ${response.status}`
+        );
     }
     return await response.json();
 }
@@ -114,24 +121,54 @@ outButton.addEventListener("click", function () {
 });
 
 function createCardRestaurant(restaurant) {
-    const { name, time_of_delivery, price, stars, kitchen, image, products } = restaurant;
+    const { name, time_of_delivery, price, stars, kitchen, image, products } =
+        restaurant;
     const card = `
     <a href="restaurant.html" class="card card-restaurant" data-products="${products}">
       <img src="${image}" alt="${name}" class="card-image" />
       <div class="card-text">
         <div class="card-heading">
           <h3 class="card-title">${name}</h3>
-          <span class="card-tag tag">${time_of_delivery}</span>
+          <span class="card-tag tag">${time_of_delivery} хв</span>
         </div>
         <div class="card-info">
           <div class="rating">${stars}</div>
-          <div class="price">${price}</div>
+          <div class="price">Від ${price} &#8372;</div>
           <div class="category">${kitchen}</div>
         </div>
       </div>
     </a>
   `;
     cardsRestaurants.insertAdjacentHTML("beforeend", card);
+}
+
+function createCardGood(product) {
+    const { id, name, description, price, image } = product;
+    const card = `
+    <div class="card">
+      <img src="${image}" alt="${name}" class="card-image" />
+      <div class="card-text">
+        <div class="card-heading">
+          <h3 class="card-title card-title-reg">${name}</h3>
+        </div>
+        <!-- /.card-heading -->
+        <div class="card-info">
+          <div class="ingredients">${description}</div>
+        </div>
+        <!-- /.card-info -->
+        <div class="card-buttons">
+          <button class="button button-primary button-add-cart">
+            <span class="button-card-text">У кошик</span>
+            <span class="button-cart-svg"></span>
+          </button>
+          <strong class="card-price-bold">${price} &#8372;</strong>
+        </div>
+      </div>
+      <!-- /.card-text -->
+    </div>
+    <!-- /.card -->
+  `;
+    cardsMenu.insertAdjacentHTML("beforeend", card);
 }
 
 function init() {
@@ -153,19 +190,62 @@ function init() {
         if (!user) {
             openAuthModal();
         } else {
-            localStorage.setItem(
-                "restaurant",
-                JSON.stringify({
-                    name: target.querySelector(".card-title").textContent,
-                    kitchen: target.querySelector(".category").textContent,
-                    price: target.querySelector(".price").textContent,
-                    stars: target.querySelector(".rating").textContent,
-                    products: target.dataset.products, 
-                })
-            );
+            const restaurant = {
+                name: target.querySelector(".card-title").textContent,
+                kitchen: target.querySelector(".category").textContent,
+                price: target.querySelector(".price").textContent,
+                stars: target.querySelector(".rating").textContent,
+                products: target.dataset.products,
+            };
+            localStorage.setItem("restaurant", JSON.stringify(restaurant));
             window.location.href = target.getAttribute("href");
         }
     });
+}
+
+function handleSearch(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        const value = event.target.value.trim().toLowerCase();
+
+        if (!value) {
+            searchInput.style.backgroundColor = "#ffcccc";
+            setTimeout(() => {
+                searchInput.style.backgroundColor = "";
+            }, 1500);
+            return;
+        }
+
+        cardsMenu.textContent = "";
+        containerPromo.classList.add("hide");
+        restaurantsSection.classList.add("hide");
+        searchResultsSection.classList.remove("hide");
+        searchResultsSection.querySelector(
+            ".section-title"
+        ).textContent = `Результати пошуку: "${event.target.value.trim()}"`;
+
+        getData("./db/partners.json")
+            .then((partners) => {
+                const allProductsPromises = partners.map((partner) =>
+                    getData(`./db/${partner.products}`)
+                );
+                return Promise.all(allProductsPromises);
+            })
+            .then((allProductsArrays) => {
+                const allProducts = allProductsArrays.flat();
+                const resultSearch = allProducts.filter((product) =>
+                    product.name.toLowerCase().includes(value)
+                );
+                if (resultSearch.length === 0) {
+                    cardsMenu.innerHTML = "<p>Нічого не знайдено.</p>";
+                } else {
+                    resultSearch.forEach(createCardGood);
+                }
+            })
+            .catch((error) => {
+                console.error("Помилка при пошуку страв:", error);
+            });
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -187,6 +267,8 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             loop: true,
         });
+
+        searchInput.addEventListener("keypress", handleSearch);
     } else if (window.location.pathname.endsWith("restaurant.html")) {
         initRestaurantPage();
     }
