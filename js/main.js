@@ -10,6 +10,7 @@ const buttonLogin = document.querySelector(".button-login");
 const loginErrorText = document.getElementById("login-error");
 const passwordErrorText = document.getElementById("password-error");
 const authErrorText = document.getElementById("auth-error");
+
 const cardsRestaurants = document.querySelector(".cards-restaurants");
 const searchInput = document.querySelector(".input-search");
 const searchResultsSection = document.querySelector(".search-results");
@@ -17,15 +18,14 @@ const cardsMenu = document.querySelector(".cards-menu");
 const containerPromo = document.querySelector(".containerPromo");
 const restaurantsSection = document.querySelector(".restaurants");
 
-async function getData(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(
-            `Помилка за адресою ${url}, статус помилки ${response.status}`
-        );
-    }
-    return await response.json();
-}
+const cartButton = document.querySelector("#cart-button");
+const modalCart = document.querySelector(".modal-cart");
+const modalBody = modalCart.querySelector(".modal-body");
+const modalPrice = modalCart.querySelector(".modal-pricetag");
+const buttonClearCart = modalCart.querySelector(".clear-cart");
+const cartCountElement = document.getElementById("cart-count");
+
+let cart = [];
 
 function saveUser(user) {
     localStorage.setItem("user", JSON.stringify(user));
@@ -46,11 +46,13 @@ function updateUI(user) {
         userNameSpan.style.display = "inline";
         authButton.style.display = "none";
         outButton.style.display = "inline-block";
+        cartButton.style.display = "flex";
     } else {
         userNameSpan.textContent = "";
         userNameSpan.style.display = "none";
         authButton.style.display = "inline-block";
         outButton.style.display = "none";
+        cartButton.style.display = "none";
     }
 }
 
@@ -116,9 +118,17 @@ closeAuthButton.addEventListener("click", closeAuthModal);
 outButton.addEventListener("click", function () {
     removeUser();
     updateUI(null);
-    closeAuthModal();
-    resetForm();
 });
+
+async function getData(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(
+            `Помилка за адресою ${url}, статус помилки ${response.status}`
+        );
+    }
+    return await response.json();
+}
 
 function createCardRestaurant(restaurant) {
     const { name, time_of_delivery, price, stars, kitchen, image, products } =
@@ -133,7 +143,7 @@ function createCardRestaurant(restaurant) {
         </div>
         <div class="card-info">
           <div class="rating">${stars}</div>
-          <div class="price">Від ${price} &#8372;</div>
+          <div class="price">Від ${price} грн</div>
           <div class="category">${kitchen}</div>
         </div>
       </div>
@@ -142,33 +152,156 @@ function createCardRestaurant(restaurant) {
     cardsRestaurants.insertAdjacentHTML("beforeend", card);
 }
 
-function createCardGood(product) {
-    const { id, name, description, price, image } = product;
-    const card = `
-    <div class="card">
-      <img src="${image}" alt="${name}" class="card-image" />
-      <div class="card-text">
+function createCardGood({ description, image, name, price, id }) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = id;
+    card.insertAdjacentHTML(
+        "beforeend",
+        `
+    <img src="${image}" alt="image" class="card-image"/>
+    <div class="card-text">
         <div class="card-heading">
-          <h3 class="card-title card-title-reg">${name}</h3>
+            <h3 class="card-title card-title-reg">${name}</h3>
         </div>
-        <!-- /.card-heading -->
         <div class="card-info">
-          <div class="ingredients">${description}</div>
+            <div class="ingredients">${description}</div>
         </div>
-        <!-- /.card-info -->
         <div class="card-buttons">
-          <button class="button button-primary button-add-cart">
-            <span class="button-card-text">У кошик</span>
-            <span class="button-cart-svg"></span>
-          </button>
-          <strong class="card-price-bold">${price} &#8372;</strong>
+            <button class="button button-primary button-add-cart" data-id="${id}">
+                <span class="button-card-text">У кошик</span>
+                <span class="button-cart-svg"></span>
+            </button>
+            <strong class="card-price-bold">${price} грн</strong>
         </div>
-      </div>
-      <!-- /.card-text -->
     </div>
-    <!-- /.card -->
-  `;
-    cardsMenu.insertAdjacentHTML("beforeend", card);
+    `
+    );
+    cardsMenu.insertAdjacentElement("beforeend", card);
+}
+
+function addToCart(event) {
+    const target = event.target;
+    const buttonAddToCart = target.closest(".button-add-cart");
+    if (buttonAddToCart) {
+        console.log('Кнопка "У кошик" натиснута');
+        const card = target.closest(".card");
+        const title = card.querySelector(".card-title-reg").textContent;
+        const costElement =
+            card.querySelector(".card-price-bold") ||
+            card.querySelector(".card-price");
+        const costText = costElement ? costElement.textContent : "0";
+        const cost = parseFloat(costText);
+        const id = buttonAddToCart.dataset.id;
+
+        if (!id) {
+            console.error("Відсутній data-id для товару");
+            return;
+        }
+
+        const existingItem = cart.find((item) => item.id === id);
+        if (existingItem) {
+            existingItem.count += 1;
+        } else {
+            cart.push({
+                id: id,
+                title: title,
+                cost: cost,
+                count: 1,
+            });
+        }
+        console.log("Товар додано до кошика:", cart);
+        renderCart();
+        saveCart();
+        updateCartCount();
+    }
+}
+
+function renderCart() {
+    modalBody.textContent = "";
+    cart.forEach(function ({ id, title, cost, count }) {
+        const itemCart = `
+            <div class="food-row">
+                <span class="food-name">${title}</span>
+                <strong class="food-price">${cost.toFixed(2)} грн</strong>
+                <div class="food-counter">
+                    <button class="counter-button counter-minus" data-id="${id}">-</button>
+                    <span class="counter">${count}</span>
+                    <button class="counter-button counter-plus" data-id="${id}">+</button>
+                </div>
+            </div>
+        `;
+        modalBody.insertAdjacentHTML("beforeend", itemCart);
+    });
+
+    const totalPriceValue = cart.reduce(function (result, item) {
+        return result + item.cost * item.count;
+    }, 0);
+    modalPrice.textContent = `${totalPriceValue.toFixed(2)} грн`;
+}
+
+function changeCount(event) {
+    const target = event.target;
+    if (target.classList.contains("counter-button")) {
+        const id = target.dataset.id;
+        const item = cart.find((item) => item.id === id);
+        if (item) {
+            if (target.classList.contains("counter-minus")) {
+                item.count -= 1;
+                if (item.count === 0) {
+                    cart = cart.filter((item) => item.id !== id);
+                }
+            }
+            if (target.classList.contains("counter-plus")) {
+                item.count += 1;
+            }
+            renderCart();
+            saveCart();
+            updateCartCount();
+        }
+    }
+}
+
+function clearCart() {
+    cart = [];
+    renderCart();
+    saveCart();
+    updateCartCount();
+}
+
+function saveCart() {
+    localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function loadCart() {
+    const savedCart = localStorage.getItem("cart");
+    cart = savedCart ? JSON.parse(savedCart) : [];
+    renderCart();
+    updateCartCount();
+}
+
+function updateCartCount() {
+    const totalCount = cart.reduce((sum, item) => sum + item.count, 0);
+    cartCountElement.textContent = `(${totalCount})`;
+}
+
+function toggleModalCart() {
+    console.log('Кнопка "Кошик" натиснута');
+    renderCart();
+    modalCart.classList.toggle("show");
+    document.body.style.overflow = modalCart.classList.contains("show")
+        ? "hidden"
+        : "";
+}
+
+function initCart() {
+    cartButton.addEventListener("click", toggleModalCart);
+    modalCart
+        .querySelector(".close")
+        .addEventListener("click", toggleModalCart);
+    modalBody.addEventListener("click", changeCount);
+    buttonClearCart.addEventListener("click", clearCart);
+    loadCart();
 }
 
 function init() {
@@ -201,6 +334,10 @@ function init() {
             window.location.href = target.getAttribute("href");
         }
     });
+
+    cardsMenu.addEventListener("click", addToCart);
+
+    initCart();
 }
 
 function handleSearch(event) {
@@ -299,34 +436,35 @@ function initRestaurantPage() {
         .catch((error) => {
             console.error("Помилка завантаження меню:", error);
         });
+
+    const cardsMenuRestaurant = document.querySelector(".cards-menu");
+    cardsMenuRestaurant.addEventListener("click", addToCart);
+
+    initCart();
 }
 
 function createMenuItemCard(product) {
     const { id, name, description, price, image } = product;
     const card = `
     <div class="card">
-      <img src="${image}" alt="${name}" class="card-image" />
-      <div class="card-text">
-        <div class="card-heading">
-          <h3 class="card-title card-title-reg">${name}</h3>
+        <img src="${image}" alt="${name}" class="card-image" />
+        <div class="card-text">
+            <div class="card-heading">
+                <h3 class="card-title card-title-reg">${name}</h3>
+            </div>
+            <div class="card-info">
+                <div class="ingredients">${description}</div>
+            </div>
+            <div class="card-buttons">
+                <button class="button button-primary button-add-cart" data-id="${id}">
+                    <span class="button-card-text">У кошик</span>
+                    <span class="button-cart-svg"></span>
+                </button>
+                <strong class="card-price-bold">${price} грн</strong>
+            </div>
         </div>
-        <!-- /.card-heading -->
-        <div class="card-info">
-          <div class="ingredients">${description}</div>
-        </div>
-        <!-- /.card-info -->
-        <div class="card-buttons">
-          <button class="button button-primary button-add-cart">
-            <span class="button-card-text">У кошик</span>
-            <span class="button-cart-svg"></span>
-          </button>
-          <strong class="card-price-bold">${price} &#8372;</strong>
-        </div>
-      </div>
-      <!-- /.card-text -->
     </div>
-    <!-- /.card -->
-  `;
+    `;
     const cardsMenu = document.querySelector(".cards-menu");
     cardsMenu.insertAdjacentHTML("beforeend", card);
 }

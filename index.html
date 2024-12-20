@@ -36,13 +36,19 @@
                         <span class="button-auth-svg"></span>
                         <span class="button-text">Увійти</span>
                     </button>
-                    <button class="button button-cart" id="cart-button">
+                    <button class="button" id="cart-button">
                         <span class="button-cart-svg"></span>
                         <span class="button-text">Кошик</span>
+                        <span class="cart-count" id="cart-count">(0)</span>
                     </button>
-                    <button class="button button-primary button-out">
+                    <!-- Кнопка Вийти -->
+                    <button class="button button-out" style="display: none">
+                        <img
+                            src="img/icon/logout.svg"
+                            alt="Logout Icon"
+                            class="logout-icon"
+                        />
                         <span class="button-text">Вийти</span>
-                        <span class="button-out-svg"></span>
                     </button>
                 </div>
             </header>
@@ -179,7 +185,7 @@
                 <div class="modal-body"></div>
                 <!-- /.modal-body -->
                 <div class="modal-footer">
-                    <span class="modal-pricetag">0 &#8372;</span>
+                    <span class="modal-pricetag">0 грн</span>
                     <div class="footer-buttons">
                         <button class="button button-primary">
                             Оформити замовлення
