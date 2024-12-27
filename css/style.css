@@ -24,6 +24,7 @@ button {
     align-items: center;
     z-index: 1000;
 }
+
 .logout-icon{
     margin-top: 7px;
     width: 15px;
@@ -524,7 +525,6 @@ input.invalid {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 45px;
 }
 
 .modal-title {

@@ -1,3 +1,21 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQgmhD9kzK6queH-vL8s-cuuIcAPs9tgg",
+    authDomain: "deliv-626be.firebaseapp.com",
+    projectId: "deliv-626be",
+    storageBucket: "deliv-626be.firebasestorage.app",
+    messagingSenderId: "3561004190",
+    appId: "1:3561004190:web:8b456225367bdfae66ef8f"
+  };
+
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+console.log(app);
+
 const authButton = document.querySelector(".button-auth");
 const outButton = document.querySelector(".button-out");
 const userNameSpan = document.getElementById("user-name");
@@ -24,6 +42,7 @@ const modalBody = modalCart.querySelector(".modal-body");
 const modalPrice = modalCart.querySelector(".modal-pricetag");
 const buttonClearCart = modalCart.querySelector(".clear-cart");
 const cartCountElement = document.getElementById("cart-count");
+const orderButton = modalCart.querySelector("#order-button"); 
 
 let cart = [];
 
@@ -302,6 +321,8 @@ function initCart() {
     modalBody.addEventListener("click", changeCount);
     buttonClearCart.addEventListener("click", clearCart);
     loadCart();
+
+    orderButton.addEventListener("click", submitOrder);
 }
 
 function init() {
@@ -467,4 +488,49 @@ function createMenuItemCard(product) {
     `;
     const cardsMenu = document.querySelector(".cards-menu");
     cardsMenu.insertAdjacentHTML("beforeend", card);
+}
+
+async function submitOrder() {
+    const phoneInput = modalCart.querySelector("#phone-number");
+    const phoneNumber = phoneInput.value.trim();
+
+    if (!phoneNumber) {
+        alert("Будь ласка, введіть номер телефону.");
+        return;
+    }
+
+    const user = getUser();
+    if (!user) {
+        alert("Користувач не авторизований.");
+        return;
+    }
+
+    if (cart.length === 0) {
+        alert("Ваш кошик порожній.");
+        return;
+    }
+
+    const order = {
+        userId: user.login, 
+        phoneNumber: phoneNumber,
+        items: cart.map(item => ({
+            id: item.id,
+            title: item.title,
+            cost: item.cost,
+            count: item.count
+        })),
+        totalPrice: cart.reduce((sum, item) => sum + item.cost * item.count, 0),
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        await addDoc(collection(db, "orders"), order);
+        alert("Замовлення успішно оформлено!");
+        clearCart();
+        toggleModalCart();
+        phoneInput.value = "";
+    } catch (error) {
+        console.error("Помилка при оформленні замовлення:", error);
+        alert("Сталася помилка при оформленні замовлення. Спробуйте ще раз.");
+    }
 }
